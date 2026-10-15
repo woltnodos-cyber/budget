@@ -1,27 +1,35 @@
-name: Build EXE
+name: Build Executable
 
 on: [push]
 
 jobs:
   build:
     runs-on: windows-latest
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
 
-      - name: Install PyInstaller
-        run: pip install pyinstaller
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install matplotlib
 
-      - name: Build with PyInstaller
-        run: pyinstaller --onefile --add-data "budget_tracker/categories.csv;." budget_tracker/pusk.py
+    - name: Install PyInstaller
+      run: |
+        pip install pyinstaller
 
-      - name: Upload EXE artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: pusk-exe
-          path: dist/pusk.exe
+    - name: Build with PyInstaller
+      run: |
+        pyinstaller --noconsole --onefile pusk.py
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: pusk-exe
+        path: dist/pusk.exe
