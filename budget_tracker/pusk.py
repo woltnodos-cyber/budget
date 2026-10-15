@@ -1,140 +1,92 @@
-from __future__ import annotations
+import tkinter as tk
+from tkinter import messagebox, ttk
+from model import BudgetTracker
 
-import logging
-import os
-import sys
-from datetime import datetime
+class BudgetApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Система учёта расходов")
+        self.root.geometry("450x450")
+        self.root.resizable(False, False)
+        
+        self.tracker = BudgetTracker()
 
-from algorithm import BudgetTracker, ConsoleReportExporter
-from generator import DataGeneratorStorage
-from model import BudgetExceededError, InvalidTransactionDataError, Transaction
+        # Заголовок
+        title_label = tk.Label(root, text="Управление личным бюджетом", font=("Arial", 14, "bold"))
+        title_label.pack(pady=10)
 
+        # Фрейм для добавления расхода
+        frame_add = tk.LabelFrame(root, text=" Добавить расход ", font=("Arial", 10))
+        frame_add.pack(fill="x", padx=15, pady=5)
 
-logging.basicConfig(
-    filename="budget_tracker.log",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
+        tk.Label(frame_add, text="Сумма (тенге/руб):").grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        self.entry_amount = tk.Entry(frame_add, width=20)
+        self.entry_amount.grid(row=0, column=1, padx=5, pady=5)
 
+        tk.Label(frame_add, text="Категория:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
+        self.combo_category = ttk.Combobox(frame_add, values=self.tracker.categories, width=18, state="readonly")
+        self.combo_category.grid(row=1, column=1, padx=5, pady=5)
+        if self.tracker.categories:
+            self.combo_category.current(0)
 
-def resource_path(relative_path: str) -> str:
-    try:
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)
+        tk.Label(frame_add, text="Описание:").grid(row=2, column=0, sticky="w", padx=5, pady=5)
+        self.entry_desc = tk.Entry(frame_add, width=20)
+        self.entry_desc.grid(row=2, column=1, padx=5, pady=5)
 
+        btn_add = tk.Button(frame_add, text="Добавить расход", bg="#4CAF50", fg="white", font=("Arial", 9, "bold"), command=self.add_expense)
+        btn_add.grid(row=3, column=0, columnspan=2, pady=10)
 
-def print_menu() -> None:
-    print("\n=== Система учёта расходов ===")
-    print("1. Добавить расход")
-    print("2. Показать сводный отчёт")
-    print("3. Поиск по описанию")
-    print("4. Сортировка расходов по сумме")
-    print("5. Сохранить отчёт в JSON")
-    print("0. Выход")
+        # Фрейм для отчетов и действий
+        frame_actions = tk.LabelFrame(root, text=" Действия и отчёты ", font=("Arial", 10))
+        frame_actions.pack(fill="x", padx=15, pady=10)
 
+        btn_report = tk.Button(frame_actions, text="Показать сводный отчёт", width=25, command=self.show_report)
+        btn_report.pack(pady=5)
 
-def input_transaction_data() -> Transaction:
-    category_name = input("Введите категорию (например, Food): ").strip()
-    amount = float(input("Введите сумму расхода: ").strip())
-    description = input("Введите описание: ").strip()
-    date_value = input("Введите дату (YYYY-MM-DD, пусто = сегодня): ").strip()
+        btn_save = tk.Button(frame_actions, text="Сохранить отчёт в JSON", width=25, command=self.save_json)
+        btn_save.pack(pady=5)
 
-    if not date_value:
-        date_value = datetime.now().strftime("%Y-%m-%d")
+    def add_expense(self):
+        amount_str = self.entry_amount.get().strip()
+        category = self.combo_category.get()
+        desc = self.entry_desc.get().strip()
 
-    return Transaction(
-        trans_id=int(datetime.now().timestamp() * 1000),
-        category_name=category_name,
-        amount=amount,
-        description=description,
-        date_str=date_value,
-    )
-
-
-def main() -> None:
-    tracker = BudgetTracker()
-    csv_path = resource_path("categories.csv")
-
-    try:
-        tracker.load_categories_from_csv(csv_path)
-        logging.info("Категории успешно загружены из %s", csv_path)
-        print("Категории загружены.")
-    except FileNotFoundError:
-        logging.error("Файл categories.csv не найден по пути: %s", csv_path)
-        print(f"Ошибка: файл categories.csv не найден по пути: {csv_path}")
-        return
-    except Exception as exc:
-        logging.exception("Ошибка загрузки категорий: %s", exc)
-        print(f"Ошибка при загрузке категорий: {exc}")
-        return
-
-    while True:
-        print_menu()
-        choice = input("Выберите действие: ").strip()
+        if not amount_str:
+            messagebox.showerror("Ошибка", "Введите сумму!")
+            return
 
         try:
-            if choice == "1":
-                transaction = input_transaction_data()
-                tracker.add_transaction(transaction)
-                logging.info("Добавлена транзакция: %s", transaction)
-                print("Транзакция добавлена успешно.")
+            amount = float(amount_str)
+            if amount <= 0:
+                raise ValueError
+        except ValueError:
+            messagebox.showerror("Ошибка", "Сумма должна быть положительным числом!")
+            return
 
-            elif choice == "2":
-                report_text = tracker.export_report(ConsoleReportExporter())
-                print(report_text)
-                logging.info("Сформирован отчёт в консоль.")
+        self.tracker.add_expense(amount, category, desc)
+        messagebox.setItem = messagebox.showinfo("Успех", f"Расход на сумму {amount} добавлен!")
+        
+        # Очистка полей
+        self.entry_amount.delete(0, tk.END)
+        self.entry_desc.delete(0, tk.END)
 
-            elif choice == "3":
-                keyword = input("Введите текст для поиска: ").strip()
-                matches = tracker.custom_search_by_description(keyword)
-                if not matches:
-                    print("Совпадений не найдено.")
-                else:
-                    print("Найденные транзакции:")
-                    for item in matches:
-                        print(f"- {item.date_str} | {item.category_name} | {item.amount:.2f} | {item.description}")
-                logging.info("Поиск по описанию выполнен для запроса '%s'", keyword)
+    def show_report(self):
+        report = self.tracker.get_summary()
+        if not report:
+            messagebox.showinfo("Отчёт", "Расходов пока нет.")
+            return
 
-            elif choice == "4":
-                sorted_transactions = tracker.custom_sort_by_amount()
-                print("Транзакции отсортированы по сумме:")
-                for item in sorted_transactions:
-                    print(f"- {item.category_name}: {item.amount:.2f} ({item.description})")
-                logging.info("Сортировка по сумме завершена.")
+        report_text = f"Всего расходов: {report['total_expenses']} руб/тенге\n\nПо категориям:\n"
+        for cat, amt in report['by_category'].items():
+            report_text += f"- {cat}: {amt}\n"
 
-            elif choice == "5":
-                report_data = {
-                    "total_spent": tracker.get_report().total_spent,
-                    "transaction_count": tracker.get_report().transaction_count,
-                    "transactions": [
-                        {
-                            "trans_id": item.trans_id,
-                            "category_name": item.category_name,
-                            "amount": item.amount,
-                            "description": item.description,
-                            "date_str": item.date_str,
-                        }
-                        for item in tracker.transactions
-                    ],
-                }
-                DataGeneratorStorage.save_report("report.json", report_data)
-                print("Отчёт сохранён в файл report.json")
-                logging.info("Отчёт сохранён в report.json")
+        messagebox.showinfo("Сводный отчёт", report_text)
 
-            elif choice == "0":
-                print("До свидания!")
-                logging.info("Пользователь завершил работу с приложением.")
-                break
-
-            else:
-                print("Некорректный вариант. Попробуйте ещё раз.")
-
-        except (ValueError, InvalidTransactionDataError, BudgetExceededError) as exc:
-            logging.error("Бизнес-ошибка: %s", exc)
-            print(f"Ошибка: {exc}")
-
+    def save_json(self):
+        self.tracker.save_to_json("budget_report.json")
+        messagebox.showinfo("Успех", "Отчёт успешно сохранён в файл budget_report.json!")
 
 if __name__ == "__main__":
-    main()
+    root = tk.Tk()
+    app = BudgetApp(root)
+    root.mainloop()
