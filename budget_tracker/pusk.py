@@ -28,7 +28,7 @@ class BudgetApp:
         if self.total_budget_limit == 0:
             self.total_budget_limit = 300000.0
 
-        self.last_stipend_month = None
+        self.active_credit = 0.0  # Активный долг по кредиту
         self.current_currency = "₸"
         self.current_rate = 1.0
 
@@ -50,13 +50,16 @@ class BudgetApp:
         self.lbl_remaining.pack(side="left", padx=5)
 
         btn_edit_budget = tk.Button(budget_display_frame, text="✏️", font=("Arial", 12), command=self.edit_budget, bg="#ffffff", relief="raised")
-        btn_edit_budget.pack(side="left", padx=5)
+        btn_edit_budget.pack(side="left", padx=3)
 
-        btn_currency = tk.Button(budget_display_frame, text="💱 Конвертир", font=("Arial", 10), command=self.show_currency_converter, bg="#d1f2eb", relief="raised")
-        btn_currency.pack(side="left", padx=5)
+        btn_currency = tk.Button(budget_display_frame, text="💱 Конвертир", font=("Arial", 9), command=self.show_currency_converter, bg="#d1f2eb", relief="raised")
+        btn_currency.pack(side="left", padx=3)
 
-        btn_credit = tk.Button(budget_display_frame, text="💳 Кредит", font=("Arial", 10), command=self.ask_for_credit, bg="#fadbd8", relief="raised")
-        btn_credit.pack(side="left", padx=5)
+        btn_credit = tk.Button(budget_display_frame, text="💳 Кредит", font=("Arial", 9), command=self.ask_for_credit, bg="#fadbd8", relief="raised")
+        btn_credit.pack(side="left", padx=3)
+
+        btn_pay_credit = tk.Button(budget_display_frame, text="💸 Погасить", font=("Arial", 9), command=self.pay_credit, bg="#d4efdf", relief="raised")
+        btn_pay_credit.pack(side="left", padx=3)
 
         main_container = tk.Frame(root)
         main_container.pack(fill="both", expand=True, padx=10, pady=5)
@@ -183,7 +186,8 @@ class BudgetApp:
         self.canvas_chart = FigureCanvasTkAgg(self.fig, master=frame_chart)
         self.canvas_chart.get_tk_widget().pack(fill="both", expand=True, padx=5, pady=5)
 
-        self.update_ui()
+        # Быстрый старт без задержек
+        self.root.after(50, self.update_ui)
 
     def update_ui(self):
         self.update_categories_display()
@@ -193,7 +197,7 @@ class BudgetApp:
 
     def update_remaining_budget(self):
         total_spent = sum(tx.amount for tx in self.tracker.transactions) if hasattr(self.tracker, 'transactions') else 0.0
-        remaining = self.total_budget_limit - total_spent
+        remaining = self.total_budget_limit - total_spent - self.active_credit
         converted_remaining = remaining / self.current_rate
         
         if remaining < 0:
@@ -257,13 +261,14 @@ class BudgetApp:
             tx_date_str = f"{year}-{month:02d}-{day:02d}"
 
             total_spent = sum(tx.amount for tx in self.tracker.transactions)
-            remaining = self.total_budget_limit - total_spent
+            remaining = self.total_budget_limit - total_spent - self.active_credit
 
             if remaining - amount < 0:
                 if messagebox.askyesno("Кредит", "У вас недостаточно средств, хотите взять кредит?"):
                     if messagebox.askyesno("Подтверждение кредита", "Вы точно уверены? Условия кредита: 50% каждый месяц"):
                         credit_amount = simpledialog.askfloat("Сумма кредита", "Введите сумму кредита (₸):", initialvalue=abs(remaining - amount) + 50000)
-                        if credit_amount:
+                        if credit_amount and credit_amount > 0:
+                            self.active_credit += credit_amount * 1.5  # Начисляем 50% сверху по условиям
                             self.total_budget_limit += credit_amount
                     else:
                         return
@@ -338,9 +343,23 @@ class BudgetApp:
             if messagebox.askyesno("Подтверждение кредита", "Вы точно уверены? Условия кредита: 50% каждый месяц"):
                 credit_amount = simpledialog.askfloat("Сумма кредита", "Введите сумму кредита (₸):")
                 if credit_amount and credit_amount > 0:
+                    self.active_credit += credit_amount * 1.5  # Долг с учетом 50%
                     self.total_budget_limit += credit_amount
                     self.update_remaining_budget()
-                    messagebox.showinfo("Успех", f"Кредит на сумму {credit_amount:,.2f} ₸ успешно добавлен к бюджету!")
+                    messagebox.showinfo("Успех", f"Кредит на сумму {credit_amount:,.2f} ₸ оформлен! Общий долг с учетом 50% ставки составил {self.active_credit:,.2f} ₸.")
+
+    def pay_credit(self):
+        if self.active_credit <= 0:
+            messagebox.showinfo("Информация", "У вас нет активных кредитов для погашения.")
+            return
+        
+        pay_amount = simpledialog.askfloat("Погашение кредита", f"Ваш текущий долг составляет: {self.active_credit:,.2f} ₸\nВведите сумму погашения:")
+        if pay_amount and pay_amount > 0:
+            if pay_amount > self.active_credit:
+                pay_amount = self.active_credit
+            self.active_credit -= pay_amount
+            self.update_remaining_budget()
+            messagebox.showinfo("Успех", f"Успешно погашено {pay_amount:,.2f} ₸. Остаток долга: {self.active_credit:,.2f} ₸.")
 
     def show_currency_converter(self):
         conv_window = tk.Toplevel(self.root)
