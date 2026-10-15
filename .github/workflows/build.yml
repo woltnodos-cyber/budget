@@ -22,7 +22,6 @@ jobs:
 
     - name: Find and Build with PyInstaller
       run: |
-        # Автоматически ищем файл pusk.py в репозитории и собираем его
         $script = Get-ChildItem -Recurse -Filter "pusk.py" | Select-Object -First 1
         if ($script) {
             Write-Host "Found script at: $($script.FullName)"
