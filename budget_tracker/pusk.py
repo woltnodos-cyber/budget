@@ -12,21 +12,17 @@ class BudgetApp:
         
         self.tracker = BudgetTracker()
         
-        # Автоматически загружаем категории из CSV при старте
         try:
             self.tracker.load_categories_from_csv("categories.csv")
-        except Exception as e:
-            # Если файл не найден локально в корне, пробуем путь внутри пакета
+        except Exception:
             try:
                 self.tracker.load_categories_from_csv("budget_tracker/categories.csv")
             except Exception:
                 pass
 
-        # Заголовок
         title_label = tk.Label(root, text="Управление личным бюджетом", font=("Arial", 14, "bold"))
         title_label.pack(pady=10)
 
-        # Фрейм для добавления расхода
         frame_add = tk.LabelFrame(root, text=" Добавить расход ", font=("Arial", 10))
         frame_add.pack(fill="x", padx=15, pady=5)
 
@@ -41,10 +37,9 @@ class BudgetApp:
 
         tk.Label(frame_add, text="Категория:").grid(row=2, column=0, sticky="w", padx=5, pady=5)
         
-        # Получаем список названий категорий для выпадающего списка
         category_names = [cat.name for cat in self.tracker.categories.values()]
         if not category_names:
-            category_names = ["Еда", "Транспорт", "Развлечения"] # запасной вариант
+            category_names = ["Еда", "Транспорт", "Развлечения"]
             
         self.combo_category = ttk.Combobox(frame_add, values=category_names, width=18, state="readonly")
         self.combo_category.grid(row=2, column=1, padx=5, pady=5)
@@ -64,7 +59,6 @@ class BudgetApp:
         btn_add = tk.Button(frame_add, text="Добавить расход", bg="#4CAF50", fg="white", font=("Arial", 9, "bold"), command=self.add_expense)
         btn_add.grid(row=5, column=0, columnspan=2, pady=10)
 
-        # Фрейм для отчетов и действий
         frame_actions = tk.LabelFrame(root, text=" Действия и отчёты ", font=("Arial", 10))
         frame_actions.pack(fill="x", padx=15, pady=10)
 
@@ -97,7 +91,6 @@ class BudgetApp:
         try:
             self.tracker.add_transaction(transaction)
             messagebox.showinfo("Успех", f"Расход на сумму {amount} успешно добавлен!")
-            # Увеличиваем ID для удобства следующего ввода
             self.entry_id.delete(0, tk.END)
             self.entry_id.insert(0, str(trans_id + 1))
             self.entry_amount.delete(0, tk.END)
